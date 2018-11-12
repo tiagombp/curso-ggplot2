@@ -1,0 +1,287 @@
+---
+title: "~~Mini~~ nano curso de ggplot2"
+author: "tiagombp"
+date: "11 de novembro de 2018"
+output: 
+  html_document:
+    theme: default
+---
+
+```{css}
+@import url('https://fonts.googleapis.com/css?family=Abril+Fatface|PT+Serif');
+
+body {
+  font-family: 'PT Serif', serif;
+}
+
+blockquote {
+  font-size: 12px;
+}
+
+h1, h2 {
+  font-family: 'Abril Fatface', cursive;
+  color: firebrick;
+}
+
+h3 {
+  font-family: 'Abril Fatface', cursive;
+}
+
+.highlight {
+  background-color: yellow;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, messages = FALSE, warning = FALSE)
+```
+
+## Apresentação
+
+Bom, a idéia aqui é ter uma visão rápida do `ggplot2`, o principal pacote do R para produzir gráficos.
+
+O Hadley, que é o autor do pacote, may his beard grow ever longer, considera o `ggplot2` único por ele ter uma profunda *gramática* subjacente. 
+
+### Alguém falou em gramática? Don't panic!
+
+Em linguística, uma [gramática](https://en.wikipedia.org/wiki/Grammar) tem a seguinte definição:
+
+<blockquote cite="https://en.wikipedia.org/wiki/Grammar">
+Em linguística, gramática (do Grego: γραμματική) é o conjunto de regras estruturais que governam a composição de orações, frases e palavras numa determinada linguagem natural.</blockquote>
+
+Assim, essa *gramática* representa um conjunto de componentes independentes que podem ser compostos de diversas formas. No caso, estamos falando da [Grammar of Graphics](https://www.springer.com/br/book/9780387245447), de Leland Wilkinson, que é um clássico da área de gráficos estatísticos. 
+
+A partir dessa "gramática de gráficos" é que o `ggplot2` foi concebido. A sua influência é tão grande que alcança até o próprio nome do pacote. O `ggplot2` nada mais é do que uma implementação open source da gramática de gráficos para o R, como o Hadley explica no seu artigo [A Layered Grammar of Graphics](http://vita.had.co.nz/papers/layered-grammar.pdf).
+
+### O `ggplot2`
+
+Essa gramática subjacente acaba tornando o `ggplot2` muito poderoso, porque não limita o usuário a um conjunto de gráficos pré-definidos.
+
+E é relativamente simples de se aprender porque possui:
+
+* um conjunto simples de princípios fundamentais;
+* poucos casos especiais.
+
+Como diz o Hadley, a maior dificuldade é se livrar das preconcepções adquiridas com o uso de outras ferramentas gráficas.
+
+O pacote apresenta um conjunto padrão de opções cuidadosamente escolhidas para que se perca menos tempo embelezando o seu gráfico (não funciona muito bem comigo), e para que se foque na criação do gráfico que melhor revele as mensagens dos seus dados. Por outro lado, o pacote oferece um extenso sistema de configuração de "temas", que permitem personalizar bastante a aparência dos gráficos.
+
+O `ggplot2` foi projetado para funcionar de forma iterativa. Os elementos gráficos são produzidos em camadas, de modo que você pode começar com uma camada mostrando os dados brutos e posteriormente adicionar camadas de anotações e sumários estatísticos.
+
+Com isso, ele lhe permite produzir gráficos "*utilizando a mesma forma estruturada de se pensar que você usaria para projetar a sua análise, reduzindo a distância entre o gráfico na sua cabeça e aquele que aparece na página*."
+
+Aprender a gramática vai lhe ajudar não apenas a criar gráficos que você já conhece atualmente, mas vai também lhe ajudar a pensar a respeitos de novos gráficos que seriam ainda melhores.
+
+> Sem a gramática, não há teoria subjacente, e assim a maioria das ferramentas gráficas são apenas uma grande coleção de casos especiais.
+
+### A gramática dos gráficos
+
+Um gráfico estatístico é um <span class="highlight">mapeamento</span> de <span class="highlight">dados</span> para <span class="highlight">atributos estéticos</span> (cor, forma, tamanho etc.) de <span class="highlight">objetos geométricos</span> (pontos, linhas, barras etc.)
+
+O gráfico é desenhado num <span class="highlight">sistema de coordenadas</span> específico e pode conter ainda <span class="highlight">transformações estatísticas</span> dos dados.
+
+<span class="highlight">Faceting</span> pode ser usado para gerar o mesmo gráfico para subconjuntos dos dados.
+
+## Um exemplo
+
+### Carga e tratamento dos dados
+
+Vamos usar como exemplo os dados de despesas do governo federal de 2008 a 2017.
+
+Para carregar os dados, vamos primeiro carregar os pacotes de que precisaremos.
+
+```{r warning=FALSE}
+library(tidyverse)
+library(readxl)
+```
+
+Vamos carregar os dados brutos a partir da planilha Excel.
+
+```{r}
+dados_brutos <- read_xlsx("despesasBrasil2008a2017.xlsx", skip = 9)
+dados_brutos
+```
+
+Nossa análise vai ser feita a partir dos valores das despesas em percentuais do PIB do exercício correspondente. Para isso, vamos:
+
+obter os PIBs do Brasil de 2008 a 2017 (a partir do pacote `ipeaData`)...
+
+```{r}
+library(ipeaData)
+pibs <- ipeadata("BM12_PIBAC12")
+pibs <- pibs[MES=="12" & ANO %in% (2008:2017)]$VALVALOR
+
+names(pibs) <- as.character(c(2008:2017))
+```
+
+Agora vamos dividir os valores das despesas pelos PIBs. Vamos renomear as colunas do nosso dataframe para facilitar. Ao final, os dados terão o seguinte formato:
+
+```{r}
+colnames(dados_brutos)<- c("Categoria", names(pibs))
+
+for (i in 2:length(dados_brutos)) {
+  dados_brutos[,i] <- dados_brutos[,i] / (pibs[colnames(dados_brutos[,i])]*1000000)
+}
+
+dados_brutos
+```
+
+O próximo passo é deixar os dados "ajeitados"" ("*tidy*"). Vou aproveitar e excluir os dados da dívida
+
+```{r}
+dados <- 
+  dados_brutos %>%
+  gather(key = "Ano", value = "Valor", `2008`:`2017`) %>%
+  filter(!(Categoria %in% c("Amortização da Dívida", "Juros"))) %>%
+  mutate(Categoria = factor(Categoria),
+         Categoria = fct_reorder(Categoria, Valor),
+         Ano = as.integer(Ano))
+
+dados
+```
+
+### Vamos desenhar!
+
+Os gráficos do `ggplot2` são criados a partir da função `ggplot`.
+
+Todo gráfico do `ggplot2` possui três componentes:
+
+1. Dados -- o dataframe em questão (um argumento da função principal: `ggplot(data = ...)`);
+2. Um conjunto de mapeamentos estéticos entre as variáveis do dataframe e propriedades visais (também em geral um argumento da função principal: `ggplot(data = ..., aes(...))`);
+3. Pelo menos uma camada descrevendo como desenhar cada observação, criadas com as funções `geom`.
+
+Vamos começar com uma chamada à função `ggplot`, passando como argumento `data` os nossos dados:
+
+```{r}
+ggplot(dados)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+Hmm. Não ajudou muito. É que ainda precisamos definir os outros dois componentes básicos: o mapeamento estético e as camadas de objetos geométricos.
+
+Vamos supor que eu queira mapear os valores da variável `Ano` no eixo **x**, e os valores da variável `Valor`, no eixo **y**:
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor))
+```
+Bom, agora pelo menos temos *escalas*, que são a forma pela qual o `ggplot2` converte os valores individuais das variáveis mapeadas para os valores individuais dos atributos estéticos. Nesse caso, estamos mapeando os valores para...
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor)) +
+  geom_point()
+```
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor, color = Categoria)) +
+  geom_point()
+```
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Categoria, color = Valor)) +
+  geom_point()
+```
+
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Categoria, size = Valor)) +
+  geom_point()
+```
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor, color = Categoria, size = Valor)) +
+  geom_point()
+```
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor)) +
+  geom_point() + 
+  geom_line()
+```
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor, group = Categoria)) +
+  geom_point() + 
+  geom_line()
+```
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor, group = Categoria, color = Categoria)) +
+  geom_point() + 
+  geom_line()
+```
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = Ano, y = Valor, color = Categoria)) +
+  geom_point()
+```
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Categoria)) +
+  geom_point()
+```
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Categoria)) +
+  geom_point() +
+  geom_col()
+```
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(y = Categoria, x = Valor, color = Categoria)) +
+  geom_point() +
+  geom_col()
+```
+
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Categoria)) +
+  geom_point() +
+  geom_col() +
+  coord_flip()
+```
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Categoria, fill = Categoria)) +
+  geom_point() +
+  geom_col() +
+  coord_flip()
+```
+
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Categoria, fill = Categoria)) +
+  geom_point() +
+  geom_col() +
+  coord_flip() +
+  theme(legend.position = 'none')
+```
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Categoria, fill = Categoria)) +
+  geom_point() +
+  coord_flip() +
+  theme(legend.position = 'none')
+```
+
+
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Categoria, fill = Categoria)) +
+  geom_col() +
+  coord_flip() +
+  theme(legend.position = 'none')
+```
+
+```{r}
+ggplot(dados %>% filter(Ano == 2017), aes(x = reorder(Categoria, Valor), y = Valor, color = Categoria, fill = Categoria)) +
+  geom_col() +
+  coord_flip() +
+  theme(legend.position = 'none')
+```
+
+
