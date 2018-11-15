@@ -197,6 +197,8 @@ ggplot(dados, aes(x = Ano, y = Valor, color = Categoria, size = Valor)) +
   geom_point()
 ```
 
+Continuar daqui
+
 ```{r}
 ggplot(dados, aes(x = Ano, y = Valor)) +
   geom_point() + 
@@ -214,6 +216,26 @@ ggplot(dados, aes(x = Ano, y = Valor, group = Categoria, color = Categoria)) +
   geom_point() + 
   geom_line()
 ```
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor, group = Categoria, color = Categoria)) +
+  geom_point() + 
+  geom_line() +
+  geom_text(aes(label = Valor))
+```
+
+```{r}
+
+ggplot(dados, aes(x = Ano, y = Valor, group = Categoria, color = Categoria)) +
+  geom_point() + 
+  geom_line() +
+  geom_text(aes(label = scales::percent(round(Valor,3))), nudge_y = 0.005, size = 2) +
+  geom_text(aes(label = ifelse(Ano == 2017, as.character(Categoria), "")), nudge_x = 0.3, size = 2, hjust = 'left') +
+  scale_x_continuous(limits = c(NA, 2020)) +
+  guides(color = FALSE)
+```
+
+Barras
 
 ```{r}
 ggplot(dados %>% filter(Ano == 2017), aes(x = Ano, y = Valor, color = Categoria)) +
@@ -260,12 +282,83 @@ ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Cate
   coord_flip() +
   theme(legend.position = 'none')
 ```
-
 ```{r}
-ggplot(dados %>% filter(Ano == 2017), aes(x = Categoria, y = Valor, color = Categoria, fill = Categoria)) +
+
+ggplot(dados %>% filter(Ano == 2017), aes(x = reorder(Categoria, Valor), y = Valor, color = Categoria, fill = Categoria)) +
   geom_point() +
+  geom_col() +
   coord_flip() +
   theme(legend.position = 'none')
+
+ggplot(dados %>% filter(Ano == 2008), aes(x = reorder(Categoria, Valor), y = Valor, color = Categoria, fill = Categoria)) +
+  geom_point() +
+  geom_col() +
+  coord_flip() +
+  theme(legend.position = 'none')
+
+```
+
+Rótulos
+
+```{r}
+
+ggplot(dados %>% filter(Ano == 2008), aes(x = reorder(Categoria, Valor), y = Valor, color = Categoria, fill = Categoria)) +
+  geom_point() +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Tipo da despesa",
+    y = NULL,
+    title = "Despesas do Governo Federal 2007-2017"
+  ) +
+  theme(legend.position = 'none')
+
+```
+
+```{r}
+
+ggplot(dados %>% filter(Ano == 2008), aes(x = reorder(Categoria, Valor), y = Valor, color = Categoria, fill = Categoria)) +
+  geom_point() +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Tipo da despesa",
+    y = NULL,
+    title = "Despesas do Governo Federal 2007-2017",
+    subtitle = "Valores em percentuais do PIB"
+  ) +
+  theme(legend.position = 'none')
+
+```
+
+Temas
+
+```{r}
+library(extrafont)
+library(RColorBrewer)
+
+display.brewer.all()
+
+ggplot(dados %>% filter(Ano == 2008), aes(x = reorder(Categoria, Valor), y = Valor, fill = Categoria)) +
+  geom_col(color = 'white') +
+  coord_flip() +
+  labs(
+    x = "Tipo da despesa",
+    y = NULL,
+    title = "Despesas do Governo Federal 2007-2017",
+    subtitle = "Valores em percentuais do PIB"
+  ) +
+  scale_fill_manual(values = brewer.pal(8, 'YlOrRd')) +
+  theme_minimal() +
+  theme(legend.position = 'none') +
+  theme(text = element_text(family = "Georgia")) +
+  theme(title = element_text(face = "bold")) +
+  theme(plot.subtitle = element_text(face = 'plain'),
+        axis.title = element_text(face = 'plain'),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.ticks.x = element_line())# + 
+  #theme(axis.title.y = element_text(angle = 0))
 ```
 
 
