@@ -102,7 +102,7 @@ library(readxl)
 Vamos carregar os dados brutos a partir da planilha Excel.
 
 ```{r}
-dados_brutos <- read_xlsx("despesasBrasil2008a2017.xlsx", skip = 9)
+dados_brutos <- read_excel("despesasBrasil2008a2017.xlsx", skip = 9)
 dados_brutos
 ```
 
@@ -113,7 +113,10 @@ obter os PIBs do Brasil de 2008 a 2017 (a partir do pacote `ipeaData`)...
 ```{r}
 library(ipeaData)
 pibs <- ipeadata("BM12_PIBAC12")
+pibs
+
 pibs <- pibs[MES=="12" & ANO %in% (2008:2017)]$VALVALOR
+pibs
 
 names(pibs) <- as.character(c(2008:2017))
 ```
@@ -133,8 +136,7 @@ dados_brutos
 O próximo passo é deixar os dados "ajeitados"" ("*tidy*"). Vou aproveitar e excluir os dados da dívida
 
 ```{r}
-dados <- 
-  dados_brutos %>%
+dados <- dados_brutos %>%
   gather(key = "Ano", value = "Valor", `2008`:`2017`) %>%
   filter(!(Categoria %in% c("Amortização da Dívida", "Juros"))) %>%
   mutate(Categoria = factor(Categoria),
@@ -182,6 +184,16 @@ ggplot(dados, aes(x = Ano, y = Valor, color = Categoria)) +
 ```
 
 ```{r}
+ggplot(dados, aes(x = Ano, y = Valor)) +
+  geom_point(color = "blue")
+```
+
+```{r}
+ggplot(dados, aes(x = Ano, y = Valor, shape = Categoria)) +
+  geom_point(color = "blue")
+```
+
+```{r}
 ggplot(dados, aes(x = Ano, y = Categoria, color = Valor)) +
   geom_point()
 ```
@@ -196,6 +208,8 @@ ggplot(dados, aes(x = Ano, y = Categoria, size = Valor)) +
 ggplot(dados, aes(x = Ano, y = Valor, color = Categoria, size = Valor)) +
   geom_point()
 ```
+
+Paramos aqui.
 
 ```{r}
 ggplot(dados, aes(x = Ano, y = Valor)) +
